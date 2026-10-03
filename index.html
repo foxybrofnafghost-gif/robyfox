@@ -9,9 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="RobyFox">
     <style>
         :root { --bg-color: #0c0c0c; --card-color: #161616; --text-color: #ffffff; --accent-color: #ff6b6b; --text-secondary: #a0a0a0; --border-color: #262626; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; padding-bottom: 90px; overflow-x: hidden; }
-        
-        /* 🔑 Identity Auth Screen Interface Layout Styling */
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; padding-bottom: 90px; overflow-x: hidden; }
         .auth-screen-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-color); z-index: 500; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
         .auth-card { background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 24px; padding: 30px; width: 85%; max-width: 340px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .auth-toggle-row { display: flex; gap: 10px; margin-bottom: 20px; background-color: #000; padding: 5px; border-radius: 12px; }
@@ -19,7 +17,6 @@
         .auth-toggle-btn.active { background-color: var(--accent-color); color: #fff; }
         .auth-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 10px; }
         .google-auth-btn { background-color: #fff; color: #000; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 15px; }
-        
         .app-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--border-color); background-color: rgba(12, 12, 12, 0.9); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px); }
         .pfp-circle { width: 42px; height: 42px; border-radius: 50%; background-color: var(--accent-color); border: 2px solid #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: #fff; background-size: cover; background-position: center; }
         .search-bar { flex: 1; margin-left: 15px; background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 20px; padding: 10px 15px; color: var(--text-color); font-size: 14px; outline: none; }
@@ -35,34 +32,25 @@
         .track-info-artist { color: var(--text-secondary); font-size: 13px; margin-top: 3px; }
         .status-msg { color: var(--text-secondary); text-align: center; font-size: 14px; padding: 20px 0; }
         /* 🔼 Full-Screen Slide-Up Audio Card (Spotify Style) */
-        .full-player-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-color); z-index: 200; display: flex; flex-direction: column; padding: 25px; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .full-player-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-color); z-index: 200; display: flex; flex-direction: column; padding: 25px; transform: translateY(100%); transition: transform 0.4s ease; }
         .full-player-overlay.open { transform: translateY(0); }
         .drag-down-handle { width: 40px; height: 5px; background-color: #333; border-radius: 3px; margin: 0 auto 30px auto; cursor: pointer; }
-        .full-art-box { width: 100%; aspect-ratio: 1/1; max-width: 300px; background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 20px; margin: 0 auto 40px auto; display: flex; align-items: center; justify-content: center; font-size: 80px; box-shadow: 0 12px 30px rgba(0,0,0,0.6); }
+        .full-art-box { width: 100%; aspect-ratio: 1/1; max-width: 300px; background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 20px; margin: 0 auto 40px auto; display: flex; align-items: center; justify-content: center; font-size: 80px; }
         .full-meta { text-align: left; width: 100%; max-width: 300px; margin: 0 auto 30px auto; }
         .full-title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
         .full-artist { font-size: 16px; color: var(--text-secondary); }
         .scrubber-container { width: 100%; max-width: 300px; margin: 0 auto 30px auto; }
-        .scrubber-bar { width: 100%; height: 4px; background-color: #333; border-radius: 2px; position: relative; cursor: pointer; }
+        .scrubber-bar { width: 100%; height: 4px; background-color: #333; border-radius: 2px; position: relative; }
         .scrubber-fill { height: 100%; width: 0%; background-color: var(--accent-color); border-radius: 2px; }
         .time-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
         .full-controls { display: flex; justify-content: center; align-items: center; gap: 35px; margin-bottom: 40px; }
         .full-btn { background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; }
         .full-btn-play { background-color: #fff; color: #000; width: 65px; height: 65px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; }
         .full-action-row { display: flex; justify-content: space-around; width: 100%; max-width: 300px; margin: 0 auto; font-size: 14px; color: var(--text-secondary); }
-        .player-action-item { cursor: pointer; display: flex; align-items: center; gap: 8px; }
-
-        /* 👤 Account Overlay Profile Menu Styles */
         .account-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.9); z-index: 300; display: none; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
-        .account-card { background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 24px; width: 85%; max-width: 360px; padding: 30px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .edit-pfp-wrapper { position: relative; width: 90px; height: 90px; margin: 0 auto 20px auto; }
-        .account-card .pfp-circle { width: 100%; height: 100%; font-size: 32px; }
-        .pfp-edit-badge { position: absolute; bottom: 0; right: 0; background-color: var(--accent-color); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--card-color); font-size: 14px; cursor: pointer; }
+        .account-card { background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 24px; width: 85%; max-width: 360px; padding: 30px; text-align: center; }
         .input-field { width: 100%; box-sizing: border-box; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 15px; color: #fff; font-size: 16px; margin-bottom: 20px; text-align: center; outline: none; }
-        .input-field:focus { border-color: var(--accent-color); }
-        .account-btn-group { display: flex; flex-direction: column; gap: 10px; }
-        .primary-btn { background-color: var(--accent-color); color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .secondary-btn { background: none; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 12px; border-radius: 12px; font-size: 14px; cursor: pointer; }
+        .primary-btn { background-color: var(--accent-color); color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; }
         .bottom-player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 65px; background-color: #1a1a1a; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 99; cursor: pointer; }
         .mini-info { display: flex; align-items: center; gap: 10px; width: 65%; }
         .mini-art { width: 40px; height: 40px; background-color: #333; border-radius: 6px; flex-shrink: 0; }
@@ -74,14 +62,16 @@
         .progress-line-bg { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background-color: #333; }
         .progress-line-fill { height: 100%; width: 0%; background-color: var(--accent-color); }
     </style>
+
+    <!-- 🌐 SECURE GOOGLE FIREBASE NETWORKING PLATFORM SCRIPTS -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
 </head>
 <body>
-
-    <!-- 🔑 GATEWAY AUTHENTICATION OVERLAY SCREEN -->
     <div class="auth-screen-overlay" id="auth-gateway-screen">
         <div class="auth-card">
             <h1 style="margin-bottom:5px;">RobyFox</h1>
-            <p style="color:var(--text-secondary); font-size:14px; margin-bottom:20px;" id="auth-status-subtitle">Create your music profile</p>
+            <p style="color:var(--text-secondary); font-size:14px; margin-bottom:20px;" id="auth-status-subtitle">Sign in to sync your player folders</p>
             <div class="auth-toggle-row">
                 <button class="auth-toggle-btn active" id="toggle-signin-mode">Sign In</button>
                 <button class="auth-toggle-btn" id="toggle-signup-mode">Sign Up</button>
@@ -94,7 +84,6 @@
         </div>
     </div>
 
-    <!-- 🏷️ MAIN RECONSTRUCTED APP WORKBENCH -->
     <div class="app-header">
         <div class="pfp-circle" id="header-pfp-btn">🦊</div>
         <input type="text" class="search-bar" id="app-search-input" placeholder="Search millions of live songs...">
@@ -113,20 +102,39 @@
             <div id="playlist-container"><div class="status-msg">Loading cloud track streams...</div></div>
         </div>
     </div>
+    <!-- 📱 FLOATING BOTTOM MINI-PLAYER BAR (Spotify Style) -->
     <div class="bottom-player-bar" id="mini-player-bar">
         <div class="mini-info" id="mini-info-trigger">
-            <div class="mini-art" style="display:flex; align-items:center; justify-content:center;">🦊</div>
-            <div class="mini-details"><div class="mini-title" id="mini-display-title">No Track Selected</div><div class="mini-artist" id="mini-display-artist">Tap Explore to select music</div></div>
+            <div class="mini-art" style="display:flex; align-items:center; justify-content:center; font-size:20px;">🦊</div>
+            <div class="mini-details">
+                <div class="mini-title" id="mini-display-title">No Track Selected</div>
+                <div class="mini-artist" id="mini-display-artist">Tap Explore to select music</div>
+            </div>
         </div>
         <div class="mini-controls"><button class="mini-btn" id="mini-play-btn">▶</button></div>
         <div class="progress-line-bg"><div class="progress-line-fill" id="mini-progress-fill"></div></div>
     </div>
+
+    <!-- 🔼 FULL SCREEN SLIDE-UP PLAYER CARD OVERLAY -->
     <div class="full-player-overlay" id="full-player-view">
         <div class="drag-down-handle" id="close-player-handle"></div>
         <div class="full-art-box">🦊</div>
-        <div class="full-meta"><div class="full-title" id="full-display-title">No Track Selected</div><div class="full-artist" id="full-display-artist">Choose a song to start listening</div></div>
-        <div class="full-controls"><button class="full-btn" id="full-prev-btn">⏮</button><button class="full-btn full-btn-play" id="full-play-btn">▶</button><button class="full-btn" id="full-next-btn">⏭</button></div>
+        <div class="full-meta">
+            <div class="full-title" id="full-display-title">No Track Selected</div>
+            <div class="full-artist" id="full-display-artist">Choose a song to start listening</div>
+        </div>
+        <div class="full-controls">
+            <button class="full-btn" id="full-prev-btn">⏮</button>
+            <button class="full-btn full-btn-play" id="full-play-btn">▶</button>
+            <button class="full-btn" id="full-next-btn">⏭</button>
+        </div>
+        <div class="full-action-row">
+            <div class="player-action-item">📥 Download</div>
+            <div class="player-action-item">❤️ Like</div>
+        </div>
     </div>
+
+    <!-- 👤 ACCOUNT PROFILE SCREEN MANAGEMENT -->
     <div class="account-overlay" id="account-modal-view">
         <div class="account-card">
             <h2>Manage Profile</h2>
@@ -135,17 +143,29 @@
                 <label for="pfp-image-uploader" class="pfp-edit-badge">✏️</label>
                 <input type="file" id="pfp-image-uploader" accept="image/*" style="display: none;">
             </div>
-            <p style="color:var(--text-secondary); font-size:12px; margin-top:-10px;">Tap pencil badge to upload photo</p>
-            <input type="text" id="edit-username-field" class="input-field" placeholder="Change Profile Name...">
+            <input type="text" id="edit-username-field" class="input-field" placeholder="Profile Name...">
             <div class="account-btn-group">
                 <button class="primary-btn" id="save-profile-btn">Save Changes</button>
-                <button class="secondary-btn" id="logout-profile-btn" style="border-color:#ff6b6b; color:#ff6b6b; margin-top:5px;">Sign Out / Switch Profile</button>
+                <button class="secondary-btn" id="logout-profile-btn" style="border-color:#ff6b6b; color:#ff6b6b; margin-top:5px;">Sign Out / Switch User</button>
                 <button class="secondary-btn" id="close-profile-btn">Cancel</button>
             </div>
         </div>
     </div>
     <audio id="audio-engine" crossorigin="anonymous"></audio>
     <script>
+        // 🔐 YOUR FIREBASE PLATFORM CREDENTIALS CONFIGURATION BOX
+        // We will fill these blank spaces with your real server keys inside the Firebase step!
+        const firebaseConfig = {
+            apiKey: "AIzaSyFakeKey_PlaceholderForSetupStep",
+            authDomain: "://firebaseapp.com",
+            projectId: "robyfox-music",
+            storageBucket: "://appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
         const authGatewayScreen = document.getElementById('auth-gateway-screen');
         const authStatusSubtitle = document.getElementById('auth-status-subtitle');
         const toggleSigninMode = document.getElementById('toggle-signin-mode');
@@ -155,6 +175,7 @@
         const emailAuthExecuteBtn = document.getElementById('email-auth-execute-btn');
         const googleAuthExecuteBtn = document.getElementById('google-auth-execute-btn');
         const guestAuthExecuteBtn = document.getElementById('guest-auth-execute-btn');
+
         const headerPfpBtn = document.getElementById('header-pfp-btn');
         const accountModalView = document.getElementById('account-modal-view');
         const closeProfileBtn = document.getElementById('close-profile-btn');
@@ -163,6 +184,7 @@
         const editUsernameField = document.getElementById('edit-username-field');
         const modalPfpDisplay = document.getElementById('modal-pfp-display');
         const pfpImageUploader = document.getElementById('pfp-image-uploader');
+
         const miniInfoTrigger = document.getElementById('mini-info-trigger');
         const fullPlayerView = document.getElementById('full-player-view');
         const closePlayerHandle = document.getElementById('close-player-handle');
@@ -179,26 +201,59 @@
 
         let mySongs = []; let currentTrackIndex = 0; let isPlaying = false; let isSignUpMode = false;
 
-        toggleSigninMode.addEventListener('click', () => { isSignUpMode = false; toggleSigninMode.classList.add('active'); toggleSignupMode.classList.remove('active'); authStatusSubtitle.textContent = "Log back into your library"; emailAuthExecuteBtn.textContent = "Log In"; });
+        toggleSigninMode.addEventListener('click', () => { isSignUpMode = false; toggleSigninMode.classList.add('active'); toggleSignupMode.classList.remove('active'); authStatusSubtitle.textContent = "Sign in to sync your player folders"; emailAuthExecuteBtn.textContent = "Log In"; });
         toggleSignupMode.addEventListener('click', () => { isSignUpMode = true; toggleSignupMode.classList.add('active'); toggleSigninMode.classList.remove('active'); authStatusSubtitle.textContent = "Create a separate music profile"; emailAuthExecuteBtn.textContent = "Create Account"; });
 
-        function unlockApplication(username) {
-            authGatewayScreen.style.display = 'none'; editUsernameField.value = username;
-            headerPfpBtn.textContent = username.charAt(0).toUpperCase(); modalPfpDisplay.textContent = username.charAt(0).toUpperCase();
-            localStorage.setItem('robyfox_current_user', username);
-            fetchMusicFeed('trending mainstream electronic', 'Trending World Music');
-        }
-
-        emailAuthExecuteBtn.addEventListener('click', () => {
-            const email = authEmailInput.value.trim();
-            if(!email || !authPasswordInput.value) return alert("Fill in account fields!");
-            unlockApplication(email.split('@')[0]);
+        // 🔐 REAL FIREBASE USER ACCOUNT LISTENERS
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                authGatewayScreen.style.display = 'none';
+                const displayName = user.displayName || user.email.split('@')[0];
+                editUsernameField.value = displayName;
+                
+                if (user.photoURL) {
+                    headerPfpBtn.style.backgroundImage = `url('${user.photoURL}')`; headerPfpBtn.textContent = '';
+                    modalPfpDisplay.style.backgroundImage = `url('${user.photoURL}')`; modalPfpDisplay.textContent = '';
+                } else {
+                    headerPfpBtn.textContent = displayName.charAt(0).toUpperCase();
+                    modalPfpDisplay.textContent = displayName.charAt(0).toUpperCase();
+                }
+                fetchMusicFeed('trending mainstream electronic', 'Trending World Music');
+            } else {
+                authGatewayScreen.style.display = 'flex';
+            }
         });
-        googleAuthExecuteBtn.addEventListener('click', () => unlockApplication("google_user"));
-        guestAuthExecuteBtn.addEventListener('click', () => unlockApplication("guest_listener"));
+        emailAuthExecuteBtn.addEventListener('click', () => {
+            const email = authEmailInput.value.trim(); const password = authPasswordInput.value;
+            if(!email || !password) return alert("Please fill in all entry fields!");
+            if(isSignUpMode) {
+                auth.createUserWithEmailAndPassword(email, password).catch(err => alert(err.message));
+            } else {
+                auth.signInWithEmailAndPassword(email, password).catch(err => alert(err.message));
+            }
+        });
+
+        // 🌐 ACTIVE SECURE GOOGLE POP-UP LOGIC MANAGER
+        googleAuthExecuteBtn.addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(err => {
+                // If native sandboxed PWA blocks standalone popups, fall back to full redirect auth flows safely
+                if(err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+                    auth.signInWithRedirect(provider);
+                } else { alert(err.message); }
+            });
+        });
+
+        guestAuthExecuteBtn.addEventListener('click', () => {
+            authGatewayScreen.style.display = 'none';
+            editUsernameField.value = "Guest Listener";
+            headerPfpBtn.textContent = "G"; modalPfpDisplay.textContent = "G";
+            fetchMusicFeed('trending lofi chill', 'Guest Feed');
+        });
+
         headerPfpBtn.addEventListener('click', () => { accountModalView.style.display = 'flex'; });
         closeProfileBtn.addEventListener('click', () => { accountModalView.style.display = 'none'; });
-        logoutProfileBtn.addEventListener('click', () => { localStorage.removeItem('robyfox_current_user'); location.reload(); });
+        logoutProfileBtn.addEventListener('click', () => { auth.signOut().then(() => location.reload()); });
 
         pfpImageUploader.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -207,7 +262,8 @@
                 reader.onload = (event) => {
                     headerPfpBtn.style.backgroundImage = `url('${event.target.result}')`; headerPfpBtn.textContent = '';
                     modalPfpDisplay.style.backgroundImage = `url('${event.target.result}')`; modalPfpDisplay.textContent = '';
-                    localStorage.setItem('robyfox_local_pfp_blob', event.target.result);
+                    const user = auth.currentUser;
+                    if(user) user.updateProfile({ photoURL: event.target.result });
                 };
                 reader.readAsDataURL(file);
             }
@@ -215,7 +271,11 @@
 
         saveProfileBtn.addEventListener('click', () => {
             const name = editUsernameField.value.trim();
-            if(name) { localStorage.setItem('robyfox_current_user', name); if(!headerPfpBtn.style.backgroundImage) { headerPfpBtn.textContent = name.charAt(0).toUpperCase(); modalPfpDisplay.textContent = name.charAt(0).toUpperCase(); } accountModalView.style.display = 'none'; }
+            if(name) {
+                const user = auth.currentUser;
+                if(user) user.updateProfile({ displayName: name }).then(() => alert("Profile updated across your cloud devices!"));
+                accountModalView.style.display = 'none';
+            }
         });
 
         async function fetchMusicFeed(query, heading) {
@@ -257,12 +317,6 @@
         fullPlayBtn.addEventListener('click', togglePlay);
         miniInfoTrigger.addEventListener('click', () => { fullPlayerView.classList.add('open'); });
         closePlayerHandle.addEventListener('click', () => { fullPlayerView.classList.remove('open'); });
-        
-        window.addEventListener('load', () => {
-            const user = localStorage.getItem('robyfox_current_user'); const pfp = localStorage.getItem('robyfox_local_pfp_blob');
-            if(user) { unlockApplication(user); }
-            if(pfp) { headerPfpBtn.style.backgroundImage = `url('${pfp}')`; headerPfpBtn.textContent = ''; modalPfpDisplay.style.backgroundImage = `url('${pfp}')`; modalPfpDisplay.textContent = ''; }
-        });
     </script>
 </body>
 </html>
