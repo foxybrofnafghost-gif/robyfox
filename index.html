@@ -122,10 +122,11 @@
         }
 
         searchBar.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && searchBar.value.trim() !== '') {
-                fetchMusic(`https://audius.co{encodeURIComponent(searchBar.value.trim())}&app_name=ROBYFOX`, `Results for "${searchBar.value}"`);
-            }
-        });
+    if (e.key === 'Enter' && searchBar.value.trim() !== '') {
+        fetchMusic(`https://audius.co{encodeURIComponent(searchBar.value.trim())}&app_name=ROBYFOX`, `Results for "${searchBar.value}"`);
+    }
+});
+
 
         downloadCurrentBtn.addEventListener('click', async () => {
             const currentSong = mySongs[currentTrackIndex]; if (!currentSong) return;
