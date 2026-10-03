@@ -43,7 +43,6 @@
     <div class="app-container">
         <h1>RobyFox</h1>
         <p class="subtitle">Your Offline & Global Music Center</p>
-        
         <div class="player-card">
             <div class="now-playing-label">Now Playing</div>
             <div id="track-title">No Track Selected</div>
@@ -58,14 +57,11 @@
                 <div class="action-btn" id="add-playlist-btn">➕ Add to Playlist</div>
             </div>
         </div>
-
         <div class="tabs">
             <button class="tab-btn active" id="tab-search">🔍 Find Tracks</button>
             <button class="tab-btn" id="tab-library">📂 My Playlists</button>
         </div>
-
         <input type="text" id="search-bar" class="search-box" placeholder="Search global cloud tracks (Press Enter)...">
-
         <div class="playlist">
             <div class="playlist-title"><span id="list-header">Trending Music</span> <button id="playlist-manage-btn" class="playlist-select-btn" style="display:none;">New Playlist</button></div>
             <div id="playlist-container"></div>
@@ -96,220 +92,84 @@
         const tabLibrary = document.getElementById('tab-library');
         const playlistManageBtn = document.getElementById('playlist-manage-btn');
 
-        // Setup phone memory database for offline songs
         const request = indexedDB.open("RobyFoxStorage", 1);
-        request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            db.createObjectStore("songs", { keyPath: "id" });
-        };
-        request.onsuccess = (e) => {
-            db = e.target.result;
-            loadPlaylistsFromStorage();
-        };
-
-        function savePlaylistsFromStorage() {
-            localStorage.setItem("robyfox_playlists", JSON.stringify(playlists));
-        }
-
-        function loadPlaylistsFromStorage() {
-            const saved = localStorage.getItem("robyfox_playlists");
-            if (saved) playlists = JSON.parse(saved);
-        }
+        request.onupgradeneeded = (e) => { db = e.target.result; db.createObjectStore("songs", { keyPath: "id" }); };
+        request.onsuccess = (e) => { db = e.target.result; const saved = localStorage.getItem("robyfox_playlists"); if (saved) playlists = JSON.parse(saved); };
 
         function buildPlaylist() {
             playlistContainer.innerHTML = '';
-            if (mySongs.length === 0) {
-                playlistContainer.innerHTML = '<div class="status-msg">No tracks found. Try searching!</div>';
-                return;
-            }
+            if (mySongs.length === 0) { playlistContainer.innerHTML = '<div class="status-msg">No tracks found. Try searching!</div>'; return; }
             mySongs.forEach((song, index) => {
                 const item = document.createElement('div');
                 item.className = `track-item ${index === currentTrackIndex ? 'active' : ''}`;
-                
                 let actionIcons = '<span>▶</span>';
-                if (currentTab === 'library' && activePlaylistName !== 'Downloads') {
-                    actionIcons = `<span style="color:#ff6b6b;" onclick="event.stopPropagation(); removeTrackFromPlaylist(${index})">❌</span>`;
-                }
-
+                if (currentTab === 'library' && activePlaylistName !== 'Downloads') { actionIcons = `<span style="color:#ff6b6b;" onclick="event.stopPropagation(); playlists['${activePlaylistName}'].splice(${index},1); localStorage.setItem('robyfox_playlists', JSON.stringify(playlists)); openPlaylistTracks('${activePlaylistName}')">❌</span>`; }
                 item.innerHTML = `<div><div class="track-info-name">${song.title}</div><div class="track-info-artist">${song.artist}</div></div><div class="track-actions">${actionIcons}</div>`;
                 item.addEventListener('click', () => loadAndPlayTrack(index));
                 playlistContainer.appendChild(item);
             });
         }
+
         async function fetchMusic(apiEndpoint, headerText) {
             playlistContainer.innerHTML = '<div class="status-msg">Connecting to cloud tracks...</div>';
             try {
                 const response = await fetch(apiEndpoint);
                 const data = await response.json();
-                mySongs = data.data.map(track => ({
-                    id: String(track.id),
-                    title: track.title,
-                    artist: track.user.name,
-                    url: `https://audius.co{track.id}/stream?app_name=ROBYFOX`,
-                    isOffline: false
-                }));
+                mySongs = data.data.map(track => ({ id: String(track.id), title: track.title, artist: track.user.name, url: `https://audius.co{track.id}/stream?app_name=ROBYFOX`, isOffline: false }));
                 listHeader.textContent = headerText;
                 buildPlaylist();
-            } catch (err) {
-                playlistContainer.innerHTML = '<div class="status-msg">Connection blocked by browser sandbox. Let\'s host it to fix it!</div>';
-            }
+            } catch (err) { playlistContainer.innerHTML = '<div class="status-msg">Error contacting servers. Try re-searching.</div>'; }
         }
 
         searchBar.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && searchBar.value.trim() !== '') {
-                const query = encodeURIComponent(searchBar.value.trim());
-                currentTab = 'search';
-                tabSearch.className = 'tab-btn active';
-                tabLibrary.className = 'tab-btn';
-                playlistManageBtn.style.display = 'none';
-                searchBar.style.display = 'block';
-                fetchMusic(`https://audius.co{query}&app_name=ROBYFOX`, `Results for "${searchBar.value}"`);
+                fetchMusic(`https://audius.co{encodeURIComponent(searchBar.value.trim())}&app_name=ROBYFOX`, `Results for "${searchBar.value}"`);
             }
         });
 
-        // 📥 OFFLINE DOWNLOAD MECHANISM
         downloadCurrentBtn.addEventListener('click', async () => {
-            const currentSong = mySongs[currentTrackIndex];
-            if (!currentSong) return alert("Pick a song first!");
-            if (currentSong.isOffline) return alert("Song is already downloaded offline!");
-
+            const currentSong = mySongs[currentTrackIndex]; if (!currentSong) return;
             downloadCurrentBtn.textContent = "📥 Downloading...";
             try {
-                const res = await fetch(currentSong.url);
-                const blob = await res.blob();
-                
+                const res = await fetch(currentSong.url); const blob = await res.blob();
                 const transaction = db.transaction(["songs"], "readwrite");
-                const store = transaction.objectStore("songs");
-                
-                store.put({
-                    id: currentSong.id,
-                    title: currentSong.title,
-                    artist: currentSong.artist,
-                    audioBlob: blob
-                });
-
+                transaction.objectStore("songs").put({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist, audioBlob: blob });
                 transaction.oncomplete = () => {
                     downloadCurrentBtn.textContent = "✅ Saved Offline";
-                    if (!playlists["Downloads"].some(s => s.id === currentSong.id)) {
-                        playlists["Downloads"].push({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist });
-                        savePlaylistsFromStorage();
-                    }
+                    if (!playlists["Downloads"].some(s => s.id === currentSong.id)) { playlists["Downloads"].push({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist }); localStorage.setItem("robyfox_playlists", JSON.stringify(playlists)); }
                 };
-            } catch (err) {
-                alert("Download failed. We must link the live site host link first!");
-                downloadCurrentBtn.textContent = "📥 Download Song";
-            }
+            } catch (err) { alert("Download unavailable on desktop sandbox mode."); downloadCurrentBtn.textContent = "📥 Download Song"; }
         });
 
-        // ➕ PLAYLIST MECHANICS
         addPlaylistBtn.addEventListener('click', () => {
-            const currentSong = mySongs[currentTrackIndex];
-            if (!currentSong) return alert("Select a song first!");
-            const listNames = Object.keys(playlists).filter(n => n !== "Downloads");
-            if (listNames.length === 0) {
-                const newName = prompt("You don't have any playlists yet. Enter a name to create one:");
-                if (newName) { playlists[newName] = []; playlists[newName].push(currentSong); savePlaylistsFromStorage(); alert("Added!"); }
-            } else {
-                const chosen = prompt(`Enter playlist name to add to:\nAvailable: ${listNames.join(", ")}`);
-                if (chosen && playlists[chosen]) {
-                    playlists[chosen].push(currentSong);
-                    savePlaylistsFromStorage();
-                    alert("Added to " + chosen);
-                } else if (chosen) {
-                    playlists[chosen] = [currentSong];
-                    savePlaylistsFromStorage();
-                    alert("Created new playlist and added!");
-                }
-            }
+            const currentSong = mySongs[currentTrackIndex]; if (!currentSong) return;
+            const name = prompt("Enter playlist folder name:");
+            if (name) { if (!playlists[name]) playlists[name] = []; playlists[name].push(currentSong); localStorage.setItem("robyfox_playlists", JSON.stringify(playlists)); alert("Added to " + name); }
         });
 
-        playlistManageBtn.addEventListener('click', () => {
-            const name = prompt("Enter new playlist name:");
-            if (name && !playlists[name]) {
-                playlists[name] = [];
-                savePlaylistsFromStorage();
-                showPlaylistMenu();
-            }
-        });
+        tabSearch.addEventListener('click', () => { currentTab = 'search'; tabSearch.className = 'tab-btn active'; tabLibrary.className = 'tab-btn'; searchBar.style.display = 'block'; fetchMusic('https://audius.co', 'Trending Music'); });
+        tabLibrary.addEventListener('click', () => { currentTab = 'library'; tabLibrary.className = 'tab-btn active'; tabSearch.className = 'tab-btn'; searchBar.style.display = 'none'; listHeader.textContent = "Your Playlists"; playlistContainer.innerHTML = ''; Object.keys(playlists).forEach(name => { const item = document.createElement('div'); item.className = 'track-item'; item.innerHTML = `<div><div class="track-info-name">📁 ${name}</div><div class="track-info-artist">${playlists[name].length} tracks</div></div><span>➔</span>`; item.addEventListener('click', () => openPlaylistTracks(name)); playlistContainer.appendChild(item); }); });
 
-        function showPlaylistMenu() {
-            listHeader.textContent = "Your Playlist Folders";
-            playlistContainer.innerHTML = '';
-            Object.keys(playlists).forEach(name => {
-                const item = document.createElement('div');
-                item.className = 'track-item';
-                item.innerHTML = `<div><div class="track-info-name">📁 ${name}</div><div class="track-info-artist">${playlists[name].length} songs saved</div></div><span>➔</span>`;
-                item.addEventListener('click', () => openPlaylistTracks(name));
-                playlistContainer.appendChild(item);
-            });
-        }
-
-        async function openPlaylistTracks(name) {
-            activePlaylistName = name;
-            listHeader.textContent = `Folder: ${name}`;
-            playlistContainer.innerHTML = '<div class="status-msg">Opening songs...</div>';
-            
+        function openPlaylistTracks(name) {
+            activePlaylistName = name; listHeader.textContent = `Folder: ${name}`;
             if (name === "Downloads") {
-                const transaction = db.transaction(["songs"], "readonly");
-                const store = transaction.objectStore("songs");
-                const req = store.getAll();
-                req.onsuccess = () => {
-                    mySongs = req.result.map(s => ({
-                        id: s.id, title: s.title, artist: s.artist,
-                        url: URL.createObjectURL(s.audioBlob), isOffline: true
-                    }));
-                    buildPlaylist();
-                };
-            } else {
-                mySongs = playlists[name].map(s => ({...s, url: s.isOffline ? s.url : `https://audius.co{s.id}/stream?app_name=ROBYFOX`}));
-                buildPlaylist();
-            }
+                const req = db.transaction(["songs"], "readonly").objectStore("songs").getAll();
+                req.onsuccess = () => { mySongs = req.result.map(s => ({ id: s.id, title: s.title, artist: s.artist, url: URL.createObjectURL(s.audioBlob), isOffline: true })); buildPlaylist(); };
+            } else { mySongs = playlists[name].map(s => ({ ...s, url: `https://audius.co{s.id}/stream?app_name=ROBYFOX` })); buildPlaylist(); }
         }
-
-        function removeTrackFromPlaylist(idx) {
-            playlists[activePlaylistName].splice(idx, 1);
-            savePlaylistsFromStorage();
-            openPlaylistTracks(activePlaylistName);
-        }
-
-        tabSearch.addEventListener('click', () => {
-            currentTab = 'search'; tabSearch.className = 'tab-btn active'; tabLibrary.className = 'tab-btn';
-            playlistManageBtn.style.display = 'none'; searchBar.style.display = 'block';
-            fetchMusic('https://audius.co', 'Trending Music');
-        });
-
-        tabLibrary.addEventListener('click', () => {
-            currentTab = 'library'; tabLibrary.className = 'tab-btn active'; tabSearch.className = 'tab-btn';
-            playlistManageBtn.style.display = 'inline-block'; searchBar.style.display = 'none';
-            showPlaylistMenu();
-        });
 
         function loadTrack(index) {
-            if (mySongs.length === 0) return;
-            currentTrackIndex = index; const song = mySongs[index];
-            if (song) {
-                audioPlayer.src = song.url; trackTitle.textContent = song.title; trackArtist.textContent = song.artist;
-                downloadCurrentBtn.textContent = song.isOffline ? "✅ Saved Offline" : "📥 Download Song";
-                document.querySelectorAll('.track-item').forEach((item, i) => { item.className = `track-item ${i === index ? 'active' : ''}`; });
-                if ('mediaSession' in navigator) { navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'RobyFox' }); }
-            }
+            if (mySongs.length === 0) return; currentTrackIndex = index; const song = mySongs[index];
+            if (song) { audioPlayer.src = song.url; trackTitle.textContent = song.title; trackArtist.textContent = song.artist; downloadCurrentBtn.textContent = song.isOffline ? "✅ Saved Offline" : "📥 Download Song"; document.querySelectorAll('.track-item').forEach((item, i) => { item.className = `track-item ${i === index ? 'active' : ''}`; }); if ('mediaSession' in navigator) { navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'RobyFox' }); } }
         }
 
-        function loadAndPlayTrack(index) { loadTrack(index); playTrack(); }
-        function playTrack() { audioPlayer.play().then(() => { isPlaying = true; playBtn.textContent = '⏸'; }).catch(err => console.log(err)); }
-        function pauseTrack() { audioPlayer.pause(); isPlaying = false; playBtn.textContent = '▶'; }
+        function loadAndPlayTrack(index) { loadTrack(index); audioPlayer.play().then(() => isPlaying = true); }
+        playBtn.addEventListener('click', () => { if (isPlaying) { audioPlayer.pause(); isPlaying = false; } else { if (!audioPlayer.src) loadTrack(0); audioPlayer.play().then(() => isPlaying = true); } });
+        nextBtn.addEventListener('click', () => { let n = currentTrackIndex + 1; if (n >= mySongs.length) n = 0; loadAndPlayTrack(n); });
+        prevBtn.addEventListener('click', () => { let p = currentTrackIndex - 1; if (p < 0) p = mySongs.length - 1; loadAndPlayTrack(p); });
+        audioPlayer.addEventListener('ended', () => { let n = currentTrackIndex + 1; if (n >= mySongs.length) n = 0; loadAndPlayTrack(n); });
 
-        playBtn.addEventListener('click', () => { if (isPlaying) { pauseTrack(); } else { if (audioPlayer.src === '') { loadTrack(0); } playTrack(); } });
-        nextBtn.addEventListener('click', () => { let nextIndex = currentTrackIndex + 1; if (nextIndex >= mySongs.length) nextIndex = 0; loadAndPlayTrack(nextIndex); });
-        prevBtn.addEventListener('click', () => { let prevIndex = currentTrackIndex - 1; if (prevIndex < 0) prevIndex = mySongs.length - 1; loadAndPlayTrack(prevIndex); });
-        audioPlayer.addEventListener('ended', () => { let nextIndex = currentTrackIndex + 1; if (nextIndex >= mySongs.length) nextIndex = 0; loadAndPlayTrack(nextIndex); });
-
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.setActionHandler('play', playTrack); navigator.mediaSession.setActionHandler('pause', pauseTrack);
-            navigator.mediaSession.setActionHandler('previoustrack', () => { let prevIndex = currentTrackIndex - 1; if (prevIndex < 0) prevIndex = mySongs.length - 1; loadAndPlayTrack(prevIndex); });
-            navigator.mediaSession.setActionHandler('nexttrack', () => { let nextIndex = currentTrackIndex + 1; if (nextIndex >= mySongs.length) nextIndex = 0; loadAndPlayTrack(nextIndex); });
-        }
-
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }
         fetchMusic('https://audius.co', 'Trending Music');
     </script>
 </body>
