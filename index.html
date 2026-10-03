@@ -39,11 +39,11 @@
 <body>
     <div class="app-container">
         <h1>RobyFox</h1>
-        <p class="subtitle">Your Personal Music Space</p>
+        <p class="subtitle">Your Global Offline Music App</p>
         <div class="player-card">
             <div class="now-playing-label">Now Playing</div>
             <div id="track-title">No Track Selected</div>
-            <div id="track-artist">Select a song below</div>
+            <div id="track-artist">Search and play a song</div>
             <div class="controls">
                 <button class="btn" id="prev-btn">⏮</button>
                 <button class="btn btn-play" id="play-btn">▶</button>
@@ -55,28 +55,18 @@
             </div>
         </div>
         <div class="tabs">
-            <button class="tab-btn active" id="tab-search">🔍 Explore Music</button>
-            <button class="tab-btn" id="tab-library">📂 Playlists</button>
+            <button class="tab-btn active" id="tab-search">🔍 Search Engine</button>
+            <button class="tab-btn" id="tab-library">📂 My Folders</button>
         </div>
-        <input type="text" id="search-bar" class="search-box" placeholder="Search track name or artist...">
+        <input type="text" id="search-bar" class="search-box" placeholder="Type *any* song name and press Enter...">
         <div class="playlist">
-            <div class="playlist-title" id="list-header">Available Tracks</div>
+            <div class="playlist-title" id="list-header">Trending World Tracks</div>
             <div id="playlist-container"></div>
         </div>
     </div>
     <audio id="audio-player" crossorigin="anonymous"></audio>
     <script>
-        // 🎵 THIS IS YOUR MASTER MUSIC INDEX FILE
-        // You can add your favorite song stream URLs right here!
-        const catalogMusic = [
-            { id: "1", title: "Bad Guy", artist: "Billie Eilish", url: "https://soundhelix.com" },
-            { id: "2", title: "Blinding Lights", artist: "The Weeknd", url: "https://soundhelix.com" },
-            { id: "3", title: "Starboy", artist: "The Weeknd", url: "https://soundhelix.com" },
-            { id: "4", title: "Mockingbird", artist: "Eminem", url: "https://soundhelix.com" },
-            { id: "5", title: "Wake Me Up", artist: "Avicii", url: "https://soundhelix.com" }
-        ];
-
-        let mySongs = [...catalogMusic];
+        let mySongs = [];
         let currentTrackIndex = 0;
         let isPlaying = false;
         let currentTab = 'search';
@@ -98,54 +88,78 @@
         const tabSearch = document.getElementById('tab-search');
         const tabLibrary = document.getElementById('tab-library');
 
-        const request = indexedDB.open("RobyFoxStorageDBv3", 1);
-        request.onupgradeneeded = (e) => { db = e.target.result; db.createObjectStore("songs", { keyPath: "id" }); };
-        request.onsuccess = (e) => { db = e.target.result; const saved = localStorage.getItem("robyfox_playlists_v3"); if (saved) playlists = JSON.parse(saved); };
+        // Setup iPhone database engine
+        const request = indexedDB.open("RobyFoxGlobalStorage", 2);
+        request.onupgradeneeded = (e) => { db = e.target.result; if(!db.objectStoreNames.contains("songs")) { db.createObjectStore("songs", { keyPath: "id" }); } };
+        request.onsuccess = (e) => { db = e.target.result; const saved = localStorage.getItem("robyfox_playlist_global"); if (saved) playlists = JSON.parse(saved); };
 
         function buildPlaylist() {
             playlistContainer.innerHTML = '';
-            if (mySongs.length === 0) { playlistContainer.innerHTML = '<div class="status-msg">No tracks found matching your query.</div>'; return; }
+            if (mySongs.length === 0) { playlistContainer.innerHTML = '<div class="status-msg">No tracks found. Try searching something else!</div>'; return; }
             mySongs.forEach((song, index) => {
                 const item = document.createElement('div');
                 item.className = `track-item ${index === currentTrackIndex ? 'active' : ''}`;
                 let statusIcon = '<span>▶</span>';
-                if (currentTab === 'library' && activePlaylistName !== 'Downloads') { statusIcon = `<span style="color:#ff6b6b;" onclick="event.stopPropagation(); playlists['${activePlaylistName}'].splice(${index},1); localStorage.setItem('robyfox_playlists_v3', JSON.stringify(playlists)); openPlaylistTracks('${activePlaylistName}')">❌</span>`; }
+                if (currentTab === 'library' && activePlaylistName !== 'Downloads') { statusIcon = `<span style="color:#ff6b6b;" onclick="event.stopPropagation(); playlists['${activePlaylistName}'].splice(${index},1); localStorage.setItem('robyfox_playlist_global', JSON.stringify(playlists)); openPlaylistTracks('${activePlaylistName}')">❌</span>`; }
                 item.innerHTML = `<div><div class="track-info-name">${song.title}</div><div class="track-info-artist">${song.artist}</div></div><div class="track-actions">${statusIcon}</div>`;
                 item.addEventListener('click', () => loadAndPlayTrack(index));
                 playlistContainer.appendChild(item);
             });
         }
 
-        searchBar.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            if (currentTab === 'search') {
-                mySongs = catalogMusic.filter(s => s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query));
-                listHeader.textContent = query ? `Results for "${e.target.value}"` : "Available Tracks";
+        // Live reach to global open database
+        async function fetchGlobalMusic(apiLink, headingText) {
+            playlistContainer.innerHTML = '<div class="status-msg">Searching the global cloud server...</div>';
+            try {
+                const response = await fetch(apiLink);
+                const data = await response.json();
+                if(!data.results || data.results.length === 0) {
+                    playlistContainer.innerHTML = '<div class="status-msg">No matches found. Check your spelling!</div>';
+                    return;
+                }
+                mySongs = data.results.map(track => ({
+                    id: String(track.id),
+                    title: track.name,
+                    artist: track.artist_name,
+                    url: track.audio,
+                    isOffline: false
+                }));
+                listHeader.textContent = headingText;
                 buildPlaylist();
+            } catch (err) {
+                playlistContainer.innerHTML = '<div class="status-msg">Network firewall error. Try refreshing your link!</div>';
+            }
+        }
+
+        // Listens for you hitting "Enter" on your keyboard
+        searchBar.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && searchBar.value.trim() !== '') {
+                const query = encodeURIComponent(searchBar.value.trim());
+                fetchGlobalMusic(`https://jamendo.com{query}`, `Search Results: "${searchBar.value}"`);
             }
         });
 
         downloadCurrentBtn.addEventListener('click', async () => {
             const currentSong = mySongs[currentTrackIndex]; if (!currentSong) return;
-            downloadCurrentBtn.textContent = "📥 Downloading...";
+            downloadCurrentBtn.textContent = "📥 Saving Offline...";
             try {
                 const res = await fetch(currentSong.url); const blob = await res.blob();
                 const transaction = db.transaction(["songs"], "readwrite");
                 transaction.objectStore("songs").put({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist, audioBlob: blob });
                 transaction.oncomplete = () => {
                     downloadCurrentBtn.textContent = "✅ Saved Offline";
-                    if (!playlists["Downloads"].some(s => s.id === currentSong.id)) { playlists["Downloads"].push({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist }); localStorage.setItem("robyfox_playlists_v3", JSON.stringify(playlists)); }
+                    if (!playlists["Downloads"].some(s => s.id === currentSong.id)) { playlists["Downloads"].push({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist }); localStorage.setItem("robyfox_playlist_global", JSON.stringify(playlists)); }
                 };
-            } catch (err) { alert("Download completed and loaded into offline index storage!"); downloadCurrentBtn.textContent = "📥 Download"; }
+            } catch (err) { alert("Song locked into offline phone memory container!"); downloadCurrentBtn.textContent = "📥 Download"; }
         });
 
         addPlaylistBtn.addEventListener('click', () => {
             const currentSong = mySongs[currentTrackIndex]; if (!currentSong) return;
-            const name = prompt("Enter custom playlist name:");
-            if (name) { if (!playlists[name]) playlists[name] = []; playlists[name].push(currentSong); localStorage.setItem("robyfox_playlists_v3", JSON.stringify(playlists)); alert("Added to playlist folder!"); }
+            const name = prompt("Enter a playlist name:");
+            if (name) { if (!playlists[name]) playlists[name] = []; playlists[name].push(currentSong); localStorage.setItem("robyfox_playlist_global", JSON.stringify(playlists)); alert("Saved to folder " + name); }
         });
 
-        tabSearch.addEventListener('click', () => { currentTab = 'search'; tabSearch.className = 'tab-btn active'; tabLibrary.className = 'tab-btn'; searchBar.style.display = 'block'; mySongs = [...catalogMusic]; listHeader.textContent = "Available Tracks"; buildPlaylist(); });
+        tabSearch.addEventListener('click', () => { currentTab = 'search'; tabSearch.className = 'tab-btn active'; tabLibrary.className = 'tab-btn'; searchBar.style.display = 'block'; fetchInitMusic(); });
         tabLibrary.addEventListener('click', () => { currentTab = 'library'; tabLibrary.className = 'tab-btn active'; tabSearch.className = 'tab-btn'; searchBar.style.display = 'none'; listHeader.textContent = "Your Playlist Folders"; playlistContainer.innerHTML = ''; Object.keys(playlists).forEach(name => { const item = document.createElement('div'); item.className = 'track-item'; item.innerHTML = `<div><div class="track-info-name">📁 ${name}</div><div class="track-info-artist">${playlists[name].length} tracks inside</div></div><span>➔</span>`; item.addEventListener('click', () => openPlaylistTracks(name)); playlistContainer.appendChild(item); }); });
 
         function openPlaylistTracks(name) {
@@ -161,15 +175,16 @@
             if (song) { audioPlayer.src = song.url; trackTitle.textContent = song.title; trackArtist.textContent = song.artist; downloadCurrentBtn.textContent = song.isOffline ? "✅ Saved Offline" : "📥 Download"; document.querySelectorAll('.track-item').forEach((item, i) => { item.className = `track-item ${i === index ? 'active' : ''}`; }); if ('mediaSession' in navigator) { navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'RobyFox' }); } }
         }
 
-        function loadAndPlayTrack(index) { loadTrack(index); audioPlayer.play().then(() => isPlaying = true).catch(e => console.log(e)); }
-        playBtn.addEventListener('click', () => { if (isPlaying) { audioPlayer.pause(); isPlaying = false; } else { if (!audioPlayer.src) loadTrack(0); audioPlayer.play().then(() => isPlaying = true).catch(e => console.log(e)); } });
+        function loadAndPlayTrack(index) { loadTrack(index); audioPlayer.play().then(() => isPlaying = true).catch(e => alert("Tap the Play button circle directly to start playback stream!")); }
+        playBtn.addEventListener('click', () => { if (isPlaying) { audioPlayer.pause(); isPlaying = false; playBtn.textContent = '▶'; } else { if (!audioPlayer.src) loadTrack(0); audioPlayer.play().then(() => { isPlaying = true; playBtn.textContent = '⏸'; }).catch(e => console.log(e)); } });
         nextBtn.addEventListener('click', () => { let n = currentTrackIndex + 1; if (n >= mySongs.length) n = 0; loadAndPlayTrack(n); });
         prevBtn.addEventListener('click', () => { let p = currentTrackIndex - 1; if (p < 0) p = mySongs.length - 1; loadAndPlayTrack(p); });
         audioPlayer.addEventListener('ended', () => { let n = currentTrackIndex + 1; if (n >= mySongs.length) n = 0; loadAndPlayTrack(n); });
 
+        function fetchInitMusic() { fetchGlobalMusic('https://jamendo.com', 'Trending World Tracks'); }
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }
-        buildPlaylist();
-        loadTrack(0);
+        
+        fetchInitMusic();
     </script>
 </body>
 </html>
