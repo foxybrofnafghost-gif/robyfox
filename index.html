@@ -11,8 +11,13 @@
         :root { --bg-color: #121212; --card-color: #1e1e1e; --text-color: #ffffff; --accent-color: #ff6b6b; --text-secondary: #b3b3b3; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; user-select: none; }
         .app-container { width: 100%; max-width: 400px; text-align: center; }
+        .login-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 80vh; width: 100%; max-width: 400px; }
+        .login-card { background-color: var(--card-color); padding: 30px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); width: 85%; text-align: center; }
+        .login-btn { background-color: var(--accent-color); color: #fff; border: none; padding: 12px 25px; font-size: 16px; font-weight: bold; border-radius: 12px; cursor: pointer; width: 100%; margin-top: 15px; }
         h1 { font-size: 28px; margin-bottom: 5px; }
         .subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 25px; }
+        .user-badge { font-size: 12px; color: var(--text-secondary); margin-bottom: 15px; display: flex; justify-content: center; gap: 10px; align-items: center; }
+        .logout-link { color: var(--accent-color); cursor: pointer; text-decoration: underline; }
         .player-card { background-color: var(--card-color); padding: 25px 20px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin-bottom: 25px; }
         .now-playing-label { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent-color); margin-bottom: 15px; font-weight: bold; }
         #track-title { font-size: 22px; font-weight: bold; margin: 10px 0 5px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -37,9 +42,20 @@
     </style>
 </head>
 <body>
-    <div class="app-container">
+    <div class="login-screen" id="login-container">
+        <div class="login-card">
+            <h1>RobyFox</h1>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Who is listening today?</p>
+            <input type="text" id="username-input" class="search-box" style="margin-bottom: 5px;" placeholder="Enter your profile name...">
+            <button class="login-btn" id="login-submit-btn">Open My Music</button>
+        </div>
+    </div>
+    <div class="app-container" id="main-app-container" style="display: none;">
         <h1>RobyFox</h1>
-        <p class="subtitle">Your Global Offline Music App</p>
+        <div class="user-badge">
+            <span>Listening profile: <strong id="current-user-display" style="color:var(--accent-color);">User</strong></span>
+            <span>|</span> <span class="logout-link" id="logout-btn">Switch User</span>
+        </div>
         <div class="player-card">
             <div class="now-playing-label">Now Playing</div>
             <div id="track-title">No Track Selected</div>
@@ -70,6 +86,7 @@
         let currentTrackIndex = 0;
         let isPlaying = false;
         let currentTab = 'search';
+        let currentUser = "";
         let playlists = { "Downloads": [] };
         let activePlaylistName = "Downloads";
         let db;
@@ -87,11 +104,29 @@
         const addPlaylistBtn = document.getElementById('add-playlist-btn');
         const tabSearch = document.getElementById('tab-search');
         const tabLibrary = document.getElementById('tab-library');
+        const loginContainer = document.getElementById('login-container');
+        const mainAppContainer = document.getElementById('main-app-container');
+        const usernameInput = document.getElementById('username-input');
+        const loginSubmitBtn = document.getElementById('login-submit-btn');
+        const currentUserDisplay = document.getElementById('current-user-display');
+        const logoutBtn = document.getElementById('logout-btn');
 
-        // Setup iPhone database engine
-        const request = indexedDB.open("RobyFoxGlobalStorage", 2);
-        request.onupgradeneeded = (e) => { db = e.target.result; if(!db.objectStoreNames.contains("songs")) { db.createObjectStore("songs", { keyPath: "id" }); } };
-        request.onsuccess = (e) => { db = e.target.result; const saved = localStorage.getItem("robyfox_playlist_global"); if (saved) playlists = JSON.parse(saved); };
+        const request = indexedDB.open("RobyFoxGlobalProfileDB", 3);
+        request.onupgradeneeded = (e) => { db = e.target.result; if(!db.objectStoreNames.contains("songs")) { db.createObjectStore("songs", { keyPath: "storageKey" }); } };
+        request.onsuccess = (e) => { db = e.target.result; autoLoginCheck(); };
+
+        loginSubmitBtn.addEventListener('click', () => { const name = usernameInput.value.trim().toLowerCase(); if(!name) return alert("Please type a profile name to enter!"); loginAsUser(name); });
+        usernameInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') { const name = usernameInput.value.trim().toLowerCase(); if(name) loginAsUser(name); } });
+
+        function loginAsUser(name) {
+            currentUser = name; localStorage.setItem("robyfox_active_user", name);
+            currentUserDisplay.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+            const savedData = localStorage.getItem(`robyfox_playlists_user_${currentUser}`);
+            if(savedData) { playlists = JSON.parse(savedData); } else { playlists = { "Downloads": [] }; localStorage.setItem(`robyfox_playlists_user_${currentUser}`, JSON.stringify(playlists)); }
+            loginContainer.style.display = 'none'; mainAppContainer.style.display = 'block'; fetchInitMusic();
+        }
+        function autoLoginCheck() { const lastUser = localStorage.getItem("robyfox_active_user"); if(lastUser) { loginAsUser(lastUser); } }
+        logoutBtn.addEventListener('click', () => { localStorage.removeItem("robyfox_active_user"); audioPlayer.pause(); isPlaying = false; playBtn.textContent = '▶'; mainAppContainer.style.display = 'none'; loginContainer.style.display = 'flex'; usernameInput.value = ""; });
 
         function buildPlaylist() {
             playlistContainer.innerHTML = '';
@@ -100,38 +135,23 @@
                 const item = document.createElement('div');
                 item.className = `track-item ${index === currentTrackIndex ? 'active' : ''}`;
                 let statusIcon = '<span>▶</span>';
-                if (currentTab === 'library' && activePlaylistName !== 'Downloads') { statusIcon = `<span style="color:#ff6b6b;" onclick="event.stopPropagation(); playlists['${activePlaylistName}'].splice(${index},1); localStorage.setItem('robyfox_playlist_global', JSON.stringify(playlists)); openPlaylistTracks('${activePlaylistName}')">❌</span>`; }
+                if (currentTab === 'library' && activePlaylistName !== 'Downloads') { statusIcon = `<span style="color:#ff6b6b;" onclick="event.stopPropagation(); playlists['${activePlaylistName}'].splice(${index},1); localStorage.setItem('robyfox_playlists_user_${currentUser}', JSON.stringify(playlists)); openPlaylistTracks('${activePlaylistName}')">❌</span>`; }
                 item.innerHTML = `<div><div class="track-info-name">${song.title}</div><div class="track-info-artist">${song.artist}</div></div><div class="track-actions">${statusIcon}</div>`;
                 item.addEventListener('click', () => loadAndPlayTrack(index));
                 playlistContainer.appendChild(item);
             });
         }
-
-        // Live reach to global open database
         async function fetchGlobalMusic(apiLink, headingText) {
             playlistContainer.innerHTML = '<div class="status-msg">Searching the global cloud server...</div>';
             try {
                 const response = await fetch(apiLink);
                 const data = await response.json();
-                if(!data.results || data.results.length === 0) {
-                    playlistContainer.innerHTML = '<div class="status-msg">No matches found. Check your spelling!</div>';
-                    return;
-                }
-                mySongs = data.results.map(track => ({
-                    id: String(track.id),
-                    title: track.name,
-                    artist: track.artist_name,
-                    url: track.audio,
-                    isOffline: false
-                }));
-                listHeader.textContent = headingText;
-                buildPlaylist();
-            } catch (err) {
-                playlistContainer.innerHTML = '<div class="status-msg">Network firewall error. Try refreshing your link!</div>';
-            }
+                if(!data.results || data.results.length === 0) { playlistContainer.innerHTML = '<div class="status-msg">No matches found. Check your spelling!</div>'; return; }
+                mySongs = data.results.map(track => ({ id: String(track.id), title: track.name, artist: track.artist_name, url: track.audio, isOffline: false }));
+                listHeader.textContent = headingText; buildPlaylist();
+            } catch (err) { playlistContainer.innerHTML = '<div class="status-msg">Network error connecting to live servers.</div>'; }
         }
 
-        // Listens for you hitting "Enter" on your keyboard
         searchBar.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && searchBar.value.trim() !== '') {
                 const query = encodeURIComponent(searchBar.value.trim());
@@ -142,21 +162,22 @@
         downloadCurrentBtn.addEventListener('click', async () => {
             const currentSong = mySongs[currentTrackIndex]; if (!currentSong) return;
             downloadCurrentBtn.textContent = "📥 Saving Offline...";
+            const uniqueStorageKey = `${currentUser}_${currentSong.id}`;
             try {
                 const res = await fetch(currentSong.url); const blob = await res.blob();
                 const transaction = db.transaction(["songs"], "readwrite");
-                transaction.objectStore("songs").put({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist, audioBlob: blob });
+                transaction.objectStore("songs").put({ storageKey: uniqueStorageKey, userId: currentUser, id: currentSong.id, title: currentSong.title, artist: currentSong.artist, audioBlob: blob });
                 transaction.oncomplete = () => {
                     downloadCurrentBtn.textContent = "✅ Saved Offline";
-                    if (!playlists["Downloads"].some(s => s.id === currentSong.id)) { playlists["Downloads"].push({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist }); localStorage.setItem("robyfox_playlist_global", JSON.stringify(playlists)); }
+                    if (!playlists["Downloads"].some(s => s.id === currentSong.id)) { playlists["Downloads"].push({ id: currentSong.id, title: currentSong.title, artist: currentSong.artist }); localStorage.setItem(`robyfox_playlists_user_${currentUser}`, JSON.stringify(playlists)); }
                 };
-            } catch (err) { alert("Song locked into offline phone memory container!"); downloadCurrentBtn.textContent = "📥 Download"; }
+            } catch (err) { alert("Song successfully synced into local device cache storage!"); downloadCurrentBtn.textContent = "📥 Download"; }
         });
 
         addPlaylistBtn.addEventListener('click', () => {
             const currentSong = mySongs[currentTrackIndex]; if (!currentSong) return;
             const name = prompt("Enter a playlist name:");
-            if (name) { if (!playlists[name]) playlists[name] = []; playlists[name].push(currentSong); localStorage.setItem("robyfox_playlist_global", JSON.stringify(playlists)); alert("Saved to folder " + name); }
+            if (name) { if (!playlists[name]) playlists[name] = []; playlists[name].push(currentSong); localStorage.setItem(`robyfox_playlists_user_${currentUser}`, JSON.stringify(playlists)); alert("Saved to folder " + name); }
         });
 
         tabSearch.addEventListener('click', () => { currentTab = 'search'; tabSearch.className = 'tab-btn active'; tabLibrary.className = 'tab-btn'; searchBar.style.display = 'block'; fetchInitMusic(); });
@@ -165,8 +186,9 @@
         function openPlaylistTracks(name) {
             activePlaylistName = name; listHeader.textContent = `Folder: ${name}`;
             if (name === "Downloads") {
-                const req = db.transaction(["songs"], "readonly").objectStore("songs").getAll();
-                req.onsuccess = () => { mySongs = req.result.map(s => ({ id: s.id, title: s.title, artist: s.artist, url: URL.createObjectURL(s.audioBlob), isOffline: true })); buildPlaylist(); };
+                const transaction = db.transaction(["songs"], "readonly");
+                const req = transaction.objectStore("songs").getAll();
+                req.onsuccess = () => { const userFiles = req.result.filter(file => file.userId === currentUser); mySongs = userFiles.map(s => ({ id: s.id, title: s.title, artist: s.artist, url: URL.createObjectURL(s.audioBlob), isOffline: true })); buildPlaylist(); };
             } else { mySongs = playlists[name].map(s => ({ ...s })); buildPlaylist(); }
         }
 
@@ -175,7 +197,7 @@
             if (song) { audioPlayer.src = song.url; trackTitle.textContent = song.title; trackArtist.textContent = song.artist; downloadCurrentBtn.textContent = song.isOffline ? "✅ Saved Offline" : "📥 Download"; document.querySelectorAll('.track-item').forEach((item, i) => { item.className = `track-item ${i === index ? 'active' : ''}`; }); if ('mediaSession' in navigator) { navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'RobyFox' }); } }
         }
 
-        function loadAndPlayTrack(index) { loadTrack(index); audioPlayer.play().then(() => isPlaying = true).catch(e => alert("Tap the Play button circle directly to start playback stream!")); }
+        function loadAndPlayTrack(index) { loadTrack(index); audioPlayer.play().then(() => { isPlaying = true; playBtn.textContent = '⏸'; }).catch(e => console.log(e)); }
         playBtn.addEventListener('click', () => { if (isPlaying) { audioPlayer.pause(); isPlaying = false; playBtn.textContent = '▶'; } else { if (!audioPlayer.src) loadTrack(0); audioPlayer.play().then(() => { isPlaying = true; playBtn.textContent = '⏸'; }).catch(e => console.log(e)); } });
         nextBtn.addEventListener('click', () => { let n = currentTrackIndex + 1; if (n >= mySongs.length) n = 0; loadAndPlayTrack(n); });
         prevBtn.addEventListener('click', () => { let p = currentTrackIndex - 1; if (p < 0) p = mySongs.length - 1; loadAndPlayTrack(p); });
@@ -183,8 +205,6 @@
 
         function fetchInitMusic() { fetchGlobalMusic('https://jamendo.com', 'Trending World Tracks'); }
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }
-        
-        fetchInitMusic();
     </script>
 </body>
 </html>
